@@ -1,0 +1,50 @@
+  
+
+global:
+  tlsDisable: false
+
+server:
+  # Use the official HashiCorp image
+  image:
+    repository: "hashicorp/vault"
+    tag: "1.21.2"
+
+  # Storage Configuration for the PVCs
+  dataStorage:
+    enabled: true
+    size: 10Gi
+    storageClass: "local-hdd" 
+    accessMode: ReadWriteOnce
+
+  # HA Configuration (Raft)
+  ha:
+    enabled: true
+    replicas: 1
+    
+    # Raft configuration
+    raft:
+      enabled: true
+      setNodeId: true
+      
+      config: |
+        ui = true
+        
+        listener "tcp" {
+          tls_disable = 0
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+          tls_cert_file = "/vault/userconfig/vault-tls/tls.crt"
+          tls_key_file = "/vault/userconfig/vault-tls/tls.key"
+          tls_client_ca_file = "/vault/userconfig/vault-tls/tls.crt"
+        }
+
+        storage "raft" {
+          path = "/vault/data"
+        }
+
+        service_registration "kubernetes" {}
+
+  # Mount the TLS secret we created in Step 1
+  extraVolumes:
+    - type: secret
+      name: vault-tls
