@@ -1,6 +1,14 @@
 nameOverride: argo-cd
+global:
+  domain: argocd.tuan-lnm.org
+
 redis-ha:
   enabled: false
+
+configs:
+  rbac:
+    policy.csv: |
+      g, engineering, role:admin
 
 controller:
   replicas: 1
