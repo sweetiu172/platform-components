@@ -1,6 +1,6 @@
 nameOverride: argo-cd
 redis-ha:
-  enabled: true
+  enabled: false
 
 controller:
   replicas: 1
@@ -8,16 +8,18 @@ controller:
 server:
   autoscaling:
     enabled: true
-    minReplicas: 2
+    minReplicas: 1
+    maxReplicas: 2
   extraArgs:
   - --insecure
 
 repoServer:
   autoscaling:
     enabled: true
-    minReplicas: 2
+    minReplicas: 1
+    maxReplicas: 2
 
 applicationSet:
-  replicas: 2
+  replicas: 1
   
 
