@@ -1,0 +1,68 @@
+prometheus:
+  prometheusSpec:
+    resources:
+      requests:
+        memory: 400Mi 
+        cpu: 200m
+      limits:
+        memory: 1Gi
+        cpu: 1000m
+    storageSpec:
+     volumeClaimTemplate:
+       spec:
+         storageClassName: local-hdd
+         accessModes: ["ReadWriteOnce"]
+         resources:
+           requests:
+             storage: 50Gi
+
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests:
+        memory: 100Mi
+        cpu: 50m
+
+grafana:
+  persistence:
+    enabled: true
+    type: sts
+    storageClassName: "local-hdd"
+    accessModes:
+      - ReadWriteOnce
+    size: 20Gi
+    finalizers:
+      - kubernetes.io/pvc-protection
+
+  initChownData:
+    enabled: false
+
+  podSecurityContext:
+    runAsUser: 472
+    runAsGroup: 472
+    fsGroup: 472
+
+  envFromSecret: "vault-oidc-creds"
+  grafana.ini:
+    server:
+      root_url: https://grafana.tuan-lnm.org
+    auth.generic_oauth:
+      enabled: true
+      name: Vault
+      tls_skip_verify_insecure: true
+      allow_sign_up: true
+      # We tell Grafana: "Use the 'sub' (username) field as the email"
+      email_attribute_path: "sub"
+      # We tell Grafana: "Use the 'sub' field as the login name too"
+      login_attribute_path: "sub"
+      auto_login: false # Set to true to bypass the login screen
+      # Grafana automatically maps env vars like GF_AUTH_GENERIC_OAUTH_CLIENT_ID
+      # if they match the config structure, but explicit referencing is clearer:
+      client_id: "${client_id}"
+      client_secret: "${client_secret}"
+      scopes: "openid user groups"
+      auth_url: "https://vault.tuan-lnm.org/v1/identity/oidc/provider/grafana-provider/authorize"
+      token_url: "https://vault.tuan-lnm.org/v1/identity/oidc/provider/grafana-provider/token"
+      api_url: "https://vault.tuan-lnm.org/v1/identity/oidc/provider/grafana-provider/userinfo"
+      # Map Vault Identity Groups 'admin-group' to Grafana Roles 'Admin'
+      role_attribute_path: "contains(groups, 'admin-group') && 'Admin' || contains(groups, 'editors') && 'Editor' || 'Viewer'"

@@ -48,3 +48,6 @@ server:
   extraVolumes:
     - type: secret
       name: vault-tls
+
+  extraEnvironmentVars:
+    VAULT_UI_SAMESITE_COOKIE: "Lax"

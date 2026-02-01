@@ -30,12 +30,12 @@ vault write identity/entity-alias \
 
 # Create a Vault OIDC client
 
-vault write identity/oidc/assignment/argocd \
+vault write identity/oidc/assignment/grafana \
     entity_ids="${ENTITY_ID}" \
     group_ids="${GROUP_ID}"
 
 
-vault write identity/oidc/key/argocd-key \
+vault write identity/oidc/key/grafana-key \
     allowed_client_ids="*" \
     verification_ttl="2h" \
     rotation_period="1h" \
@@ -46,6 +46,13 @@ vault write identity/oidc/client/argocd \
     redirect_uris="https://argocd.tuan-lnm.org/api/dex/callback" \
     assignments="argocd" \
     key="argocd-key" \
+    id_token_ttl="30m" \
+    access_token_ttl="1h"
+
+vault write identity/oidc/client/grafana \
+    key="grafana-key" \
+    redirect_uris="https://grafana.tuan-lnm.org/login/generic_oauth" \
+    assignments="grafana" \
     id_token_ttl="30m" \
     access_token_ttl="1h"
 
@@ -70,6 +77,11 @@ vault write identity/oidc/scope/groups \
     issuer="$(echo $VAULT_ADDR)" \
     allowed_client_ids="${CLIENT_ID}" \
     scopes_supported="groups,user"
+
+<!-- vault write identity/oidc/provider/grafana-provider \
+    issuer="$(echo $VAULT_ADDR)" \
+    allowed_client_ids="${CLIENT_ID}" \
+    scopes_supported="groups,user" -->
 
 # Configure ArgoCD OIDC auth
 
