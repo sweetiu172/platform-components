@@ -1,0 +1,78 @@
+deploymentMode: SingleBinary
+
+loki:
+  tracing:
+    enabled: true
+
+  querier:
+    max_concurrent: 2
+
+  auth_enabled: false
+  
+  commonConfig:
+    replication_factor: 1
+
+  schemaConfig:
+    configs:
+      - from: 2024-04-01
+        store: tsdb
+        object_store: filesystem # <--- This only works in SingleBinary
+        schema: v13
+        index:
+          prefix: index_
+          period: 24h
+
+  storage:
+    type: filesystem
+
+  # This configures where on the PVC the logs are stored
+  storage_config:
+    filesystem:
+      directory: /var/loki/chunks
+
+singleBinary:
+  replicas: 1
+  persistence:
+    enabled: true
+    size: 20Gi
+    storageClass: local-hdd
+  resources:
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 1
+      memory: 1Gi
+  extraEnv:
+    # Keep a little bit lower than memory limits
+    - name: GOMEMLIMIT
+      value: 1750MiB
+
+minio:
+  enabled: false
+
+backend:
+  replicas: 0
+read:
+  replicas: 0
+write:
+  replicas: 0
+
+ingester:
+  replicas: 0
+querier:
+  replicas: 0
+queryFrontend:
+  replicas: 0
+queryScheduler:
+  replicas: 0
+distributor:
+  replicas: 0
+compactor:
+  replicas: 0
+indexGateway:
+  replicas: 0
+bloomCompactor:
+  replicas: 0
+bloomGateway:
+  replicas: 0

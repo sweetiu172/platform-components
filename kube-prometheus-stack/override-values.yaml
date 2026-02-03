@@ -42,6 +42,15 @@ grafana:
     runAsGroup: 472
     fsGroup: 472
 
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      url: http://loki-logging-gateway.logging.svc
+      access: proxy
+      isDefault: false
+      jsonData:
+        maxLines: 1000
+
   envFromSecret: "vault-oidc-creds"
   grafana.ini:
     server:
