@@ -1,6 +1,6 @@
 # Setup Private connection between client machines and private intranet Apps
 
-## Prerequistes
+## Prerequisites
 
 - Cloudflare tunnel installed (`nbiot-detector` tunnel)
 
@@ -453,7 +453,7 @@ $ curl -v https://app.tuan-lnm.org
 {"message":"N-BaIoT Botnet Detector API with LightGBM model is running."}
 ```
 
-## Techinical Decision
+## Technical Decision
 
 ### Choosing between ESO and Vault Agent Injector
 
@@ -469,79 +469,14 @@ $ curl -v https://app.tuan-lnm.org
 
     - Best for: Custom applications where you want maximum security (secrets never touch etcd).
 
-2. External Secrets Operator (ESO)
-**"The Bridge"**
+| Feature | External Secrets Operator (ESO) | Vault Agent Injector |
+| --- | --- | --- |
+| Delivery Mechanism | Creates native Kubernetes Secret resources. | Mounts an in-memory file (tmpfs) to the Pod. |
+| Tool Compatibility | High: Works natively with Helm, Ingress, Cert-Manager | Low: Requires apps to read from specific file paths. |
+| Security Posture | Moderate: Secrets are stored in ETCD (requires at-rest encryption). | High: Secrets live only in RAM; never touch ETCD. |
+| App Modification | None. Apps consume standard K8s secrets. | May require code changes or wrapper scripts to source files. |
 
-    How it works:
-
-    - You define an ExternalSecret resource (YAML) saying "I want secret foo from Vault."
-
-    - ESO controller authenticates to Vault.
-
-    - ESO creates a standard kind: Secret in Kubernetes with that data.
-
-    - ESO keeps watching Vault; if the secret changes there, it updates the K8s Secret.
-
-    Pros:
-
-    - Universal Compatibility: Works with any application or operator (like cert-manager) because everything in K8s knows how to read a Secret.
-
-    - Zero App Code Changes: Your app just reads an environment variable or volume mount as defined in its Deployment.
-
-    - Debuggable: You can see the secret exists (via kubectl get secret) and debug mounting issues easily.
-
-    Cons:
-
-    - Less Secure (by default): The secret is stored in etcd (Kubernetes database). If you don't enable "Encryption at Rest" (as we discussed), a database snapshot reveals the secret.
-
-    - Latency: There is a slight delay (polling interval) between a change in Vault and the update in K8s.
-
-3. Vault Agent Injector
-**"The Purist"**
-
-    How it works:
-
-    - You add Annotations to your Pod (vault.hashicorp.com/agent-inject: "true").
-
-    - When the Pod starts, a Mutating Webhook injects a generic "Vault Agent" container alongside your app.
-
-    - This agent talks to Vault, gets the secret, and writes it to a RAM disk (tmpfs) at /vault/secrets/myapp.
-
-    - Your application reads the file from that path.
-
-    Pros:
-
-    - Maximum Security: The secret exists only in the Pod's RAM. It is never written to etcd, never visible via kubectl get secrets, and disappears instantly when the Pod dies.
-
-    - Real-time Rotation: If the secret changes in Vault, the Agent updates the file immediately and can even send a SIGHUP signal to your app to reload it.
-
-    Cons:
-
-    - Incompatible with 3rd Party Tools: You cannot use this for cert-manager, Ingress, or standard Helm charts because those tools usually accept a secretName string, not a file path inside a container they don't control.
-
-    - Requires App Logic: Your application must be configured to read from a specific file path (/vault/secrets/...), or you need a wrapper script to export that file to an environment variable on startup.
-
-4. Technical Decision: Choosing External Secrets Operator (ESO) over Vault Agent Injector
-
-    4.1. Native Compatibility with Cert-Manager (The Deciding Factor)
-
-    The Constraint: Cert-Manager’s Cloudflare DNS-01 solver explicitly requires a native Kubernetes Secret object to read the API token via the apiTokenSecretRef field.
-
-    Why Vault Agent Injector Fails Here: The Vault Agent Injector is designed to inject secrets directly into a Pod's filesystem (via an in-memory volume) using init containers and sidecars. It does not create or manage native Kubernetes Secret resources. Using it would require building a custom workaround to sync the injected file back to the Kubernetes API.
-
-    Why ESO Wins:  ESO is purpose-built for this exact bridge. It fetches the secret from Vault and seamlessly renders and manages the lifecycle of a standard Kubernetes Secret, perfectly fulfilling Cert-Manager's requirement.
-
-    4.2. Ease of Integration and Declarative Management
-
-    ESO operates entirely through Kubernetes Custom Resource Definitions (CRDs) like ClusterSecretStore and ExternalSecret. This makes the secret synchronization logic entirely declarative, version-controllable, and easily managed by GitOps tools (like ArgoCD).
-
-    4.3. Pragmatic Risk Acceptance (Network Isolation)
-
-    Creating native Kubernetes Secrets means the Cloudflare token is stored as base64-encoded text within the cluster's ETCD datastore.
-
-    However, the cluster architecture operates within a highly isolated boundary. Because ingress is strictly gated behind Cloudflare Zero Trust tunnels and the physical local network, the external attack surface is virtually non-existent. The immediate risk of ETCD compromise by an external threat actor is mitigated by the network perimeter, justifying the decision to prioritize functionality over immediate datastore encryption.
-
-5. Technical Debt
+2. Technical Debt
 - Implement "Encryption at Rest" for ETCD
 
     Context: While network isolation protects against external threats, the Cloudflare API token remains unencrypted inside the ETCD database. Anyone with host-level access to the control plane nodes or unauthorized ETCD read access could extract the token.
