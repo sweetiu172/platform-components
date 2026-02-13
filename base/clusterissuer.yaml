@@ -1,0 +1,21 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    # The Let's Encrypt Production URL
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: lnmtuan1702@gmail.com  # <--- Change this
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+    - dns01:
+        cloudflare:
+          email: lnmtuan1702@gmail.com
+          apiTokenSecretRef:
+            name: cloudflare-api-token-secret
+            key: api-token
+      selector:
+        dnsZones:
+        - "tuan-lnm.org"
