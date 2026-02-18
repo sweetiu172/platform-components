@@ -1,15 +1,33 @@
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
-  name: cpu-scaledobject
+  name: cpu-memory-scaledobject
   namespace: nbiot-detector
 spec:
   scaleTargetRef:
     name: nbiot-detector
   minReplicaCount: 1
   maxReplicaCount: 5
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 300 # Wait 5 min before scaling down (Standard)
+          policies:
+          - type: Percent
+            value: 100
+            periodSeconds: 15
+        scaleUp:
+          stabilizationWindowSeconds: 30 # <--- Ignore spikes shorter than 30s
+          policies:
+          - type: Pods
+            value: 4
+            periodSeconds: 15
+          - type: Percent
+            value: 100
+            periodSeconds: 15
   triggers:
   - type: cpu
-    metricType: Utilization # Allowed types are 'Utilization' or 'AverageValue'
+    metricType: AverageValue # Allowed types are 'Utilization' or 'AverageValue'
     metadata:
-      value: "60"
+      value: "90m"
