@@ -4,6 +4,8 @@ This repository contains the Infrastructure as Code (IaC) configuration for core
 
 ## Components
 
+![Architecture Overview](./docs/overall%20architecture.png)
+
 ### 1. HashiCorp Vault (`/vault`)
 *   **Purpose:** Secret management and OIDC Identity Provider.
 *   **Configuration:**
@@ -36,18 +38,36 @@ This repository contains the Infrastructure as Code (IaC) configuration for core
         *   **Datasources:** Pre-configured with Loki.
 *   **Key File:** `kube-prometheus-stack/override-values.yaml`.
 
-### 4. Loki (`/loki`)
-*   **Purpose:** Log aggregation system.
-*   **Configuration:**
+### 4. Logging Stack: Loki (`/loki`) & Promtail (`/promtail`)
+*   **Purpose:** Distributed log collection and aggregation.
+*   **Loki Configuration:**
     *   **Mode:** `SingleBinary` (Monolithic deployment).
     *   **Storage:** Filesystem storage on a 20Gi `local-hdd` PVC. No object storage (Minio disabled).
     *   **Tracing:** Enabled.
-*   **Key File:** `loki/override-values.yaml`.
+*   **Promtail Configuration:**
+    *   Deploys as a DaemonSet to gather logs.
+    *   Configured to push to `http://loki-logging-gateway:80/loki/api/v1/push`.
+*   **Key Files:** `loki/override-values.yaml`, `promtail/override-values.yaml`.
+
+### 5. KEDA (`/keda`)
+*   **Purpose:** Kubernetes Event-driven Autoscaling to dynamically scale workloads based on various metrics.
+*   **Configuration:** Deploys the core KEDA Operator and Metrics API Server.
+*   **Key File:** `keda/values.yaml`.
+
+### 6. Cloudflare Tunnel (`/cloudflare-tunnel-remote`)
+*   **Purpose:** Securely exposes internal Kubernetes resources (such as the API server or specific web interfaces) to the internet without opening inbound firewall ports.
+*   **Configuration:** Requires a `tunnel_token` for `cloudflared` to connect back to the Cloudflare Zero Trust network.
+*   **Key File:** `cloudflare-tunnel-remote/values.yaml`.
+
+### 7. Base Infrastructure (`/base`)
+*   **Purpose:** Essential cluster-wide resources to support the other components.
+*   **Configuration:** Includes foundational manifests for external-secrets (integrating with Vault), cert-manager ClusterIssuers, and default StorageClasses (`local-hdd`).
 
 ## Key Files & Documentation
 
-*   **`OIDC-SSO-setup.md`**: A step-by-step guide on configuring Vault to act as an OIDC provider for Argo CD. It includes commands for enabling userpass auth, creating entities/groups, and configuring the Argo CD ConfigMaps (`argocd-cm`, `argocd-rbac-cm`).
+*   **`OIDC-SSO-setup.md`** (in `docs/`): A step-by-step guide on configuring Vault to act as an OIDC provider for Argo CD.
 *   **`vault-oidc.hcl`**:  HCL configuration file related to the Vault OIDC setup.
+*   **`cloudflare-k8s-auth.sh`**: A shell script generating `ExecCredential` for `kubectl` via Cloudflare Access (`cloudflared access token`).
 *   **`vault/override-values.yml`**: The Helm values file used to deploy Vault with the specific lab configuration (HA, Raft, TLS).
 *   **`argo-cd/values.extended.yaml`**: The Helm values file used to deploy Argo CD with HA and autoscaling enabled.
 
@@ -75,9 +95,10 @@ helm install argocd ./argo-cd -f argo-cd/values.extended.yaml -n argocd
 helm install kube-prometheus-stack ./kube-prometheus-stack -f kube-prometheus-stack/override-values.yaml -n monitoring
 ```
 
-### Deploying Logging Stack (Loki)
+### Deploying Logging Stack (Loki & Promtail)
 ```bash
 helm install loki ./loki -f loki/override-values.yaml -n logging
+helm install promtail ./promtail -f promtail/override-values.yaml -n logging
 ```
 
 ### Configuring OIDC SSO
